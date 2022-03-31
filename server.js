@@ -85,7 +85,7 @@ app.use(json())
 app.use(urlencoded({ extended: false }))
 app.use(express.static('public'))
 
-app.use('/api/users/:_id/logs',({ method, url, query, params, body }, res, next) => {
+/*app.use('/api/users/:_id/logs',({ method, url, query, params, body }, res, next) => {
 	console.log('>>> ', method, url);
 	console.log(' QUERY:', query);
 	console.log(' PRAMS:', params);
@@ -98,7 +98,7 @@ app.use('/api/users/:_id/logs',({ method, url, query, params, body }, res, next)
 	console.log(' ----------------------------');
 	next();
   });
-
+*/
 app.get('/', async (req, res) => {
 	res.sendFile(__dirname + '/views/index.html')
 });
@@ -154,9 +154,10 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
 
 app.get('/api/users/:_id/logs', async (req, res) => {
 	try {
-		const { _id, from, to, limit } = req.params;
+		const { _id } = req.params;
 		const FROM_DATE = new Date(req.query.from)
 		const TO_DATE = new Date(req.query.to)
+
 		const FROM_TIMESTAMP = !isNaN(FROM_DATE) && FROM_DATE.getTime()
 		const TO_TIMESTAMP = !isNaN(TO_DATE) && TO_DATE.getTime()
 		const LIMIT_INT = parseInt(req.query.limit, 10)
@@ -219,7 +220,6 @@ app.get('/api/users/:_id/logs', async (req, res) => {
 			method: req.method,
 			response: baseResponse
 		})
-
 		res.json(baseResponse)
 	} catch (error) {
 		await handleException(req, res, error.message)
@@ -230,7 +230,7 @@ const listener = app.listen(process.env.PORT || 3000, () => {
 	console.log('Your app is listening on port ' + listener.address().port)
 })
 
-module.exports = {
+/*module.exports = {
 	app,
 	User
-};
+};*/
