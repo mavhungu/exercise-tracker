@@ -152,9 +152,41 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
 	}
 })
 
-/*app.get('/api/users/:_id/logs', async (req, res) => {
+app.get('/api/users/:_id/logs', async (req, res) => {
 	try {
-		const { _id } = req.params;
+		//const { _id } = req.params;
+
+
+
+		const {_id, from, to, limit} = req.query;
+  
+		let temp=getExercisesFromUserWithId(userId);
+		
+		if(from){
+		  const fromDate= new Date(from)
+		  temp = temp.filter(exe => new Date(exe.date) > fromDate);
+		}
+		
+		if(to){
+		  const toDate = new Date(to)
+		  temp = temp.filter(exe => new Date(exe.date) < toDate);
+		}
+		
+		if(limit){
+		  temp = temp.slice(0,limit);
+		}
+		
+		const log = {
+		  _id:userId,
+		  username:getUsernameById(userId),
+		  count:parseFloat(temp.length),
+		  log:temp
+		}
+		
+		res.json(log)
+
+
+
 		const FROM_DATE = new Date(req.query.from)
 		const TO_DATE = new Date(req.query.to)
 
@@ -224,30 +256,7 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
 	} catch (error) {
 		await handleException(req, res, error.message)
 	}
-})*/
-
-app.get('/api/exercise/log', (req, res) => {
-	const {userId, from, to, limit} = req.query;
-	
-	const log = getExercisesFromUserWithId(userId);
-	
-	if(from && to){
-	  const fromDate = new Date(from);
-	  const toDate = new Date(to);
-	  log = log.filter(exe => new Date.parse(exe.date) > fromDate) && log.filter(exe => new Date.parse(exe.date) < toDate);  
-	}
-	
-	if(limit){
-	  log = log.slice(0, limit);
-	}             
-	
-	res.json({
-	  _id: userId,
-	  username: getUsernameById(userId),
-	  count: log.length,
-	  log
-	});
-  });
+})
 
 const listener = app.listen(process.env.PORT || 3000, () => {
 	console.log('Your app is listening on port ' + listener.address().port)
