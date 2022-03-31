@@ -107,6 +107,58 @@ app
   });
 
 /**
+ * POST /api/users/:_id/exercises
+ *
+ * Submit a new exercise
+ */
+ app.post("/api/users/:_id/exercises", bodyParserUrlEncoded, (req, res) => {
+    const { _id } = req.params;
+    if (_id.length !== 24) {
+      res.json({ error: "User ID needs to be 24 hex characters" });
+      return;
+    }
+  
+    getUserByIdAnd(_id, (userObject) => {
+      // handle / validate data
+      let { description, duration, date } = req.body;
+      if (description === "" || duration === "") {
+        res.json({ error: "Please provide a description and duration" });
+        return;
+      }
+      duration = parseInt(duration, 10);
+      if (isNaN(duration)) {
+        res.json({ error: "Please provide a valid duration number" });
+        return;
+      }
+      if (date === "" || date === undefined) date = new Date();
+      else date = new Date(date);
+      if (!isValidDate(date)) {
+        res.json({ error: "Invalid date." });
+        return;
+      }
+  
+      // Add exercise to DB
+      const exercise = new ExerciseActivity({
+        user_id: userObject._id,
+        description: description,
+        duration: duration,
+        date: date,
+      });
+      exercise.save();
+  
+      // return user and exercise info as JSON
+      res.json({
+        _id: userObject._id,
+        username: userObject.username,
+        description: description,
+        duration: duration,
+        date: new Date(date).toDateString(),
+      });
+    });
+  });
+
+
+/**
  * GET /api/users/:_id/logs
  *
  * View the activities log for one user
@@ -151,7 +203,7 @@ app.get("/api/users/:_id/logs", (req, res) => {
           duration: e.duration,
           date: new Date(e.date).toDateString(),
         }));
-
+        
         res.json({
           _id: userObject._id,
           username: userObject.username,
@@ -160,57 +212,6 @@ app.get("/api/users/:_id/logs", (req, res) => {
         });
       });
     }
-  });
-});
-
-/**
- * POST /api/users/:_id/exercises
- *
- * Submit a new exercise
- */
-app.post("/api/users/:_id/exercises", bodyParserUrlEncoded, (req, res) => {
-  const { _id } = req.params;
-  if (_id.length !== 24) {
-    res.json({ error: "User ID needs to be 24 hex characters" });
-    return;
-  }
-
-  getUserByIdAnd(_id, (userObject) => {
-    // handle / validate data
-    let { description, duration, date } = req.body;
-    if (description === "" || duration === "") {
-      res.json({ error: "Please provide a description and duration" });
-      return;
-    }
-    duration = parseInt(duration, 10);
-    if (isNaN(duration)) {
-      res.json({ error: "Please provide a valid duration number" });
-      return;
-    }
-    if (date === "" || date === undefined) date = new Date();
-    else date = new Date(date);
-    if (!isValidDate(date)) {
-      res.json({ error: "Invalid date." });
-      return;
-    }
-
-    // Add exercise to DB
-    const exercise = new ExerciseActivity({
-      user_id: userObject._id,
-      description: description,
-      duration: duration,
-      date: date,
-    });
-    exercise.save();
-
-    // return user and exercise info as JSON
-    res.json({
-      _id: userObject._id,
-      username: userObject.username,
-      description: description,
-      duration: duration,
-      date: new Date(date).toDateString(),
-    });
   });
 });
 

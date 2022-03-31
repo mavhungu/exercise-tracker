@@ -152,9 +152,10 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
 	}
 })
 
-/*app.get('/api/users/:_id/logs', async (req, res) => {
+app.get('/api/users/:_id/logs', async (req, res) => {
 	try {
 		const { _id, from, to, } = req.query;
+		
 		
 		const FROM_DATE = new Date(req.query.from)
 		const TO_DATE = new Date(req.query.to)
@@ -225,79 +226,7 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
 	} catch (error) {
 		await handleException(req, res, error.message)
 	}
-})*/
-
-app.get("/api/users/:_id/logs", (req, res) => {
-	// get user id from params and check that it won't break the DB query
-	const { _id } = req.params;
-	if (_id.length !== 24) {
-	  return res.json({ error: "User ID needs to be 24 hex characters" });
-	}
-  
-	// find the user
-	getUserByIdAnd(_id, (userObject) => {
-	  if (userObject === null) res.json({ error: "User not found" });
-	  else {
-		const limit = req.query.limit ? req.query.limit : 0;
-  
-		// find the user's activities
-		let promise = ExerciseActivity.find({ user_id: _id }).exec();
-		assert.ok(promise instanceof Promise);
-		promise.then((exerciseObjects) => {
-		  // apply from
-		  if (req.query.from) {
-			const from = new Date(req.query.from);
-			exerciseObjects = exerciseObjects.filter(
-			  (e) => new Date(e.date).getTime() >= from.getTime()
-			);
-		  }
-		  // apply to
-		  if (req.query.to) {
-			const to = new Date(req.query.to);
-			exerciseObjects = exerciseObjects.filter(
-			  (e) => new Date(e.date).getTime() <= to.getTime()
-			);
-		  }
-		  // apply limit
-		  if (req.query.limit) exerciseObjects = exerciseObjects.slice(0, req.query.limit);
-  
-		  // change date to DateString
-		  exerciseObjects = exerciseObjects.map((e) => ({
-			description: e.description,
-			duration: e.duration,
-			date: new Date(e.date).toDateString(),
-		  }));
-  
-		  res.json({
-			_id: userObject._id,
-			username: userObject.username,
-			count: exerciseObjects.length,
-			log: exerciseObjects,
-		  });
-		});
-	  }
-	});
-  });
-
-  const getUserByIdAnd = (_id, callback) => {
-	let promise = ExerciseUser.findOne({ _id: _id }).exec();
-	assert.ok(promise instanceof Promise);
-	promise.then((userObject) => callback(userObject));
-  };
-  
-  const isValidDate = (date) => {
-	// https://stackoverflow.com/questions/1353684/detecting-an-invalid-date-date-instance-in-javascript
-	if (Object.prototype.toString.call(date) === "[object Date]") {
-	  if (isNaN(date.getTime())) {
-		// d.valueOf() could also work
-		return false;
-	  } else {
-		return true;
-	  }
-	} else {
-	  return false;
-	}
-  };
+})
 
 const listener = app.listen(process.env.PORT || 3000, () => {
 	console.log('Your app is listening on port ' + listener.address().port)
