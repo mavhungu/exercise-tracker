@@ -28,5 +28,9 @@
     "hbs": "^4.2.0",
     "mongodb": "^4.4.1",
     "mongoose": "^6.2.9"
+  },
+  "devDependencies": {
+    "mocha": "^9.2.2",
+    "supertest": "^6.2.2"
   }
 }
