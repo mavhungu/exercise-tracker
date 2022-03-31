@@ -154,7 +154,7 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
 
 app.get('/api/users/:_id/logs', async (req, res) => {
 	try {
-		const { _id } = req.params;
+		const { _id, from, to, limit } = req.params;
 		const FROM_DATE = new Date(req.query.from)
 		const TO_DATE = new Date(req.query.to)
 
