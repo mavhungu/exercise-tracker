@@ -1,4 +1,7 @@
 const errorhandle = require('../middleware/errorhandle')
+const User = require('../models/users')
+const Exercise = require('../models/exercise')
+const Response = require('../models/response')
 
 const userscontroller = async (req, res)=>{
     try {
@@ -24,7 +27,27 @@ const postuserscontroller = async (req, res)=>{
 }
 
 const exercisescontroller = async (req, res)=>{
+    try {
+		const { _id } = req.params;
+		const { description } = req.body;
+		const DURATION_INT = parseInt(req.body.duration, 10);
+		const REQ_BODY_DATE = new Date(req.body.date);
+		const DEFAULT_DATE = new Date().toDateString();
+		const DATE_STRING = (!isNaN(REQ_BODY_DATE) && REQ_BODY_DATE.toDateString()) || DEFAULT_DATE;
 
+		const { username } = await User.findById({ _id });
+		const { duration, date } = await Exercise.create({
+			userId: _id,
+			username,
+			description,
+			duration: DURATION_INT,
+			date: DATE_STRING
+		});
+
+		res.json({ _id, username, description, duration, date });
+	} catch (error) {
+		await errorhandle(req, res, error)
+	}
 }
 
 const logscontroller = async (req,res)=>{
