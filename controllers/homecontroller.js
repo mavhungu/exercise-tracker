@@ -4,5 +4,10 @@ const homecontroller = async (req, res)=>{
         'home': 'Exercise tracker'
     })
 }
+const healthcheckcontroller = async (req, res)=>{
+    res.json({
+        message: 'OK'
+    })
+}
 
-module.exports= homecontroller
+module.exports= {homecontroller, healthcheckcontroller}

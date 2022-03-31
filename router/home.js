@@ -1,7 +1,9 @@
 const express = require('express')
-const homecontroller = require('../controllers/homecontroller')
+const {homecontroller, healthcheckcontroller} = require('../controllers/homecontroller')
 const router = express.Router()
 
 router.route('/').get(homecontroller)
+router.route('/healthcheck')
+.get(healthcheckcontroller)
 
-module.exports = router
+module.exports = router;
