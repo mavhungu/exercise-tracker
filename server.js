@@ -153,109 +153,54 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
 })
 
 app.get('/api/users/:_id/logs', async (req, res) => {
-	try {
-		//const { _id } = req.params;
+	const { _id } = req.params;
+  if (_id.length !== 24) {
+    return res.json({ error: "User ID needs to be 24 hex characters" });
+  }
 
+  // find the user
+  getUserByIdAnd(_id, (userObject) => {
+    if (userObject === null) res.json({ error: "User not found" });
+    else {
+      const limit = req.query.limit ? req.query.limit : 0;
 
+      // find the user's activities
+      let promise = ExerciseActivity.find({ user_id: _id }).exec();
+      assert.ok(promise instanceof Promise);
+      promise.then((exerciseObjects) => {
+        // apply from
+        if (req.query.from) {
+          const from = new Date(req.query.from);
+          exerciseObjects = exerciseObjects.filter(
+            (e) => new Date(e.date).getTime() >= from.getTime()
+          );
+        }
+        // apply to
+        if (req.query.to) {
+          const to = new Date(req.query.to);
+          exerciseObjects = exerciseObjects.filter(
+            (e) => new Date(e.date).getTime() <= to.getTime()
+          );
+        }
+        // apply limit
+        if (req.query.limit) exerciseObjects = exerciseObjects.slice(0, req.query.limit);
 
-		const {_id, from, to, limit} = req.query;
-  
-		let temp=getExercisesFromUserWithId(userId);
-		
-		if(from){
-		  const fromDate= new Date(from)
-		  temp = temp.filter(exe => new Date(exe.date) > fromDate);
-		}
-		
-		if(to){
-		  const toDate = new Date(to)
-		  temp = temp.filter(exe => new Date(exe.date) < toDate);
-		}
-		
-		if(limit){
-		  temp = temp.slice(0,limit);
-		}
-		
-		const log = {
-		  _id:userId,
-		  username:getUsernameById(userId),
-		  count:parseFloat(temp.length),
-		  log:temp
-		}
-		
-		res.json(log)
+        // change date to DateString
+        exerciseObjects = exerciseObjects.map((e) => ({
+          description: e.description,
+          duration: e.duration,
+          date: new Date(e.date).toDateString(),
+        }));
 
-
-
-		const FROM_DATE = new Date(req.query.from)
-		const TO_DATE = new Date(req.query.to)
-
-		const FROM_TIMESTAMP = !isNaN(FROM_DATE) && FROM_DATE.getTime()
-		const TO_TIMESTAMP = !isNaN(TO_DATE) && TO_DATE.getTime()
-		const LIMIT_INT = parseInt(req.query.limit, 10)
-		const FIND_OPTIONS = { userId: _id }
-		const SELECT_OPTIONS = { _id: 0, duration: 1, date: 1, description: 1 }
-
-		const { username } = await User.findById({ _id })
-
-		const filterByDateRange = ({ date }) =>
-			new Date(date).getTime() >= FROM_TIMESTAMP && new Date(date).getTime() <= TO_TIMESTAMP
-
-		let log;
-
-		if (FROM_TIMESTAMP && TO_TIMESTAMP && !!LIMIT_INT && LIMIT_INT > 0) {
-			log = await Exercise
-				.find(FIND_OPTIONS)
-				.select(SELECT_OPTIONS)
-				.limit(LIMIT_INT)
-
-			log = log.filter(filterByDateRange)
-
-		} else if (FROM_TIMESTAMP && TO_TIMESTAMP && !LIMIT_INT) {
-			log = await Exercise
-				.find(FIND_OPTIONS)
-				.select(SELECT_OPTIONS)
-
-			log = log.filter(filterByDateRange)
-
-		} else if (!FROM_TIMESTAMP && !TO_TIMESTAMP && !!LIMIT_INT && LIMIT_INT > 0) {
-			log = await Exercise
-				.find(FIND_OPTIONS)
-				.select(SELECT_OPTIONS)
-				.limit(LIMIT_INT)
-
-		} else {
-			log = await Exercise
-				.find(FIND_OPTIONS)
-				.select(SELECT_OPTIONS)
-		}
-
-		const count = log.length
-
-		let baseResponse = { }
-
-		if (FROM_DATE.toDateString() !== 'Invalid Date') {
-			baseResponse.from = FROM_DATE.toDateString()
-		}
-
-		if (TO_DATE.toDateString() !== 'Invalid Date') {
-			baseResponse.to = TO_DATE.toDateString()
-		}
-
-		baseResponse = { _id, username, ...baseResponse, count, log }
-
-		await Response.create({
-			path: req.path,
-			params: req.params,
-			body: req.body,
-			query: req.query,
-			method: req.method,
-			response: baseResponse
-		})
-		res.json(baseResponse)
-	} catch (error) {
-		await handleException(req, res, error.message)
-	}
+        res.json({
+          _id: userObject._id,
+          username: userObject.username,
+          count: exerciseObjects.length,
+          log: exerciseObjects,
+        });
+      });
+    }
+  });
 })
 
 const listener = app.listen(process.env.PORT || 3000, () => {
