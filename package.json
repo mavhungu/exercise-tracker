@@ -1,0 +1,31 @@
+{
+  "name": "exercise-tracker",
+  "version": "1.0.0",
+  "description": "Exercise Tracker",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js",
+    "dev": "nodemon app.js -e js,hbs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mavhungu/exercise-tracker.git"
+  },
+  "keywords": [],
+  "author": "Mavhungu Ronewa",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mavhungu/exercise-tracker/issues"
+  },
+  "homepage": "https://github.com/mavhungu/exercise-tracker#readme",
+  "dependencies": {
+    "body-parser": "^1.19.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.0",
+    "express": "^4.17.3",
+    "hbs": "^4.2.0",
+    "mongodb": "^4.4.1",
+    "mongoose": "^6.2.9"
+  }
+}
