@@ -1,258 +1,131 @@
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- *                        Setup Packages                     *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 require("dotenv").config();
 const express = require("express");
-const app = express();
 const cors = require("cors");
+const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
-//const fetch = require("node-fetch");
+const morgan = require("morgan");
+const app = express();
+const { Schema } = mongoose;
+
+const port = process.env.PORT || 8000;
+const dbURI = process.env.MONGODB_URI;
 
 app.use(cors());
+app.use(morgan("dev"));
 app.use(express.static("public"));
-const bodyParserUrlEncoded = bodyParser.urlencoded({ extended: false });
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/views/index.html");
 });
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- *                        Setup DB                           *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-let mongoose;
-try {
-  mongoose = require("mongoose");
-} catch (e) {
-  console.log(e);
-}
-const { assert } = require("chai");
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-const { Schema } = mongoose;
-
-// USER
-const exerciseUserSchema = new Schema({
-  username: { type: String, required: true },
-});
-let ExerciseUser = mongoose.model("ExerciseUser", exerciseUserSchema);
-
-// ACTIVITY
-const exerciseActivitySchema = new Schema({
-  user_id: { type: String, required: true },
+const exerciseSessionSchema = new Schema({
   description: { type: String, required: true },
   duration: { type: Number, required: true },
-  date: { type: String, required: true },
+  date: String,
 });
-let ExerciseActivity = mongoose.model(
-  "ExerciseActivity",
-  exerciseActivitySchema
+
+const userSchema = new Schema({
+  username: { type: String, required: true },
+  log: [exerciseSessionSchema],
+});
+
+const User = mongoose.model("User", userSchema);
+const Session = mongoose.model("Session", exerciseSessionSchema);
+
+app.post(
+  "/api/users",
+  bodyParser.urlencoded({ extended: false }),
+  (req, res) => {
+    let newUser = new User({ username: req.body.username });
+
+    newUser.save((error, savedUser) => {
+      if (error) return error;
+      let responseObject = {};
+      responseObject["username"] = savedUser.username;
+      responseObject["_id"] = savedUser.id;
+      res.json(responseObject);
+    });
+  }
 );
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- *                     API routes                            *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-app
-  /**
-   * GET /api/users
-   *
-   * Returns a list of all users
-   */
-  .route("/api/users")
-  .get((req, res) => {
-    ExerciseUser.find({}, (err, docs) => {
-      if (err) {
-        console.error(err);
-        res.json({ error: err });
-      } else {
-        res.json(docs);
-      }
-    });
-  })
-
-  /**
-   * POST /api/users
-   *
-   * Creates a new user
-   * Request body (URL encoded):
-   * - username (String)
-   */
-  .post(bodyParserUrlEncoded, (req, res) => {
-    const { username } = req.body;
-
-    // look up if a user with this name already exists ... if so res error
-    let promise = ExerciseUser.findOne({ username: username }).exec();
-    assert.ok(promise instanceof Promise);
-    promise.then((userObject) => {
-      if (userObject !== null) {
-        // The user exists, so return the object
-        res.json({
-          username: userObject.username,
-          _id: userObject._id,
-        });
-      } else {
-        // The user does not yet exist, so create a new one
-        const newUser = new ExerciseUser({ username: username });
-        newUser.save((err) => {
-          if (err) res.json({ Error: err });
-          else
-            res.json({
-              username: newUser.username,
-              _id: newUser._id,
-            });
-        });
-      }
-    });
+app.get("/api/users", (req, res) => {
+  User.find({}, (error, arrayOfUsers) => {
+    if (error) return error;
+    res.json(arrayOfUsers);
   });
+});
 
-/**
- * POST /api/users/:_id/exercises
- *
- * Submit a new exercise
- */
- app.post("/api/users/:_id/exercises", bodyParserUrlEncoded, (req, res) => {
-    const { _id } = req.params;
-    if (_id.length !== 24) {
-      res.json({ error: "User ID needs to be 24 hex characters" });
-      return;
-    }
-  
-    getUserByIdAnd(_id, (userObject) => {
-      // handle / validate data
-      let { description, duration, date } = req.body;
-      if (description === "" || duration === "") {
-        res.json({ error: "Please provide a description and duration" });
-        return;
-      }
-      duration = parseInt(duration, 10);
-      if (isNaN(duration)) {
-        res.json({ error: "Please provide a valid duration number" });
-        return;
-      }
-      if (date === "" || date === undefined) date = new Date();
-      else date = new Date(date);
-      if (!isValidDate(date)) {
-        res.json({ error: "Invalid date." });
-        return;
-      }
-  
-      // Add exercise to DB
-      const exercise = new ExerciseActivity({
-        user_id: userObject._id,
-        description: description,
-        duration: duration,
-        date: date,
-      });
-      exercise.save();
-  
-      // return user and exercise info as JSON
-      res.json({
-        _id: userObject._id,
-        username: userObject.username,
-        description: description,
-        duration: duration,
-        date: new Date(date).toDateString(),
-      });
+app.post(
+  "/api/users/:_id/exercises",
+  bodyParser.urlencoded({ extended: false }),
+  (req, res) => {
+    let newSession = new Session({
+      description: req.body.description,
+      duration: parseInt(req.body.duration),
+      date: req.body.date
+        ? new Date(req.body.date).toDateString()
+        : new Date().toDateString(),
     });
-  });
 
+    User.findByIdAndUpdate(
+      req.params._id,
+      { $push: { log: newSession } },
+      { new: true },
+      (error, updatedUser) => {
+        if (error) return error;
+        let responseObject = {};
+        responseObject["_id"] = updatedUser.id;
+        responseObject["username"] = updatedUser.username;
+        responseObject["date"] = new Date(newSession.date).toDateString();
+        responseObject["description"] = newSession.description;
+        responseObject["duration"] = newSession.duration;
+        res.json(responseObject);
+      }
+    );
+  }
+);
 
-/**
- * GET /api/users/:_id/logs
- *
- * View the activities log for one user
- */
 app.get("/api/users/:_id/logs", (req, res) => {
-  // get user id from params and check that it won't break the DB query
-  const { _id } = req.params;
-  if (_id.length !== 24) {
-    return res.json({ error: "User ID needs to be 24 hex characters" });
-  }
+  User.findById(req.params._id, (error, result) => {
+    if (error) return error;
+    let responseObject = result;
 
-  // find the user
-  getUserByIdAnd(_id, (userObject) => {
-    if (userObject === null) res.json({ error: "User not found" });
-    else {
-      const limit = req.query.limit ? req.query.limit : 0;
+    if (req.query.from || req.query.to) {
+      let fromDate = new Date(0);
+      let toDate = new Date();
 
-      // find the user's activities
-      let promise = ExerciseActivity.find({ user_id: _id }).exec();
-      assert.ok(promise instanceof Promise);
-      promise.then((exerciseObjects) => {
-        // apply from
-        if (req.query.from) {
-          const from = new Date(req.query.from);
-          exerciseObjects = exerciseObjects.filter(
-            (e) => new Date(e.date).getTime() >= from.getTime()
-          );
-        }
-        // apply to
-        if (req.query.to) {
-          const to = new Date(req.query.to);
-          exerciseObjects = exerciseObjects.filter(
-            (e) => new Date(e.date).getTime() <= to.getTime()
-          );
-        }
-        // apply limit
-        if (req.query.limit) exerciseObjects = exerciseObjects.slice(0, req.query.limit);
+      if (req.query.from) {
+        fromDate = new Date(req.query.from);
+      }
 
-        // change date to DateString
-        exerciseObjects = exerciseObjects.map((e) => ({
-          description: e.description,
-          duration: e.duration,
-          date: new Date(e.date).toDateString(),
-        }));
-        
-        res.json({
-          _id: userObject._id,
-          username: userObject.username,
-          count: exerciseObjects.length,
-          log: exerciseObjects,
-        });
+      if (req.query.to) {
+        toDate = new Date(req.query.to);
+      }
+
+      fromDate = fromDate.getTime();
+      toDate = toDate.getTime();
+
+      responseObject.log = responseObject.log.filter((session) => {
+        let sessionDate = new Date(session.date).getTime();
+
+        return sessionDate >= fromDate && sessionDate <= toDate;
       });
     }
-  });
-});
 
-/**
- * GET /api/delete
- *
- * deletes all users and activities
- */
-app.get("/api/delete", (req, res) => {
-  ExerciseActivity.deleteMany({}, (err) => {
-    if (err) console.error(err);
-    ExerciseUser.deleteMante({}, (err) => {
-      if (err) console.error(err);
-      res.json({ status: "All exercise items deleted" });
-    });
-  });
-});
-
-const listener = app.listen(process.env.PORT || 3000, () => {
-  console.log("Your app is listening on port " + listener.address().port);
-});
-
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- *                     Utilities                             *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-const getUserByIdAnd = (_id, callback) => {
-  let promise = ExerciseUser.findOne({ _id: _id }).exec();
-  assert.ok(promise instanceof Promise);
-  promise.then((userObject) => callback(userObject));
-};
-
-const isValidDate = (date) => {
-  // https://stackoverflow.com/questions/1353684/detecting-an-invalid-date-date-instance-in-javascript
-  if (Object.prototype.toString.call(date) === "[object Date]") {
-    if (isNaN(date.getTime())) {
-      // d.valueOf() could also work
-      return false;
-    } else {
-      return true;
+    if (req.query.limit) {
+      responseObject.log = responseObject.log.slice(0, req.query.limit);
     }
-  } else {
-    return false;
-  }
-};
+
+    responseObject = responseObject.toJSON();
+    responseObject["count"] = result.log.length;
+    res.json(responseObject);
+  });
+});
+
+mongoose
+  .connect(dbURI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("Connected to Database"))
+  .catch((error) => console.log(error));
+
+const listener = app.listen(port, () => {
+  console.log(listener.address());
+});
